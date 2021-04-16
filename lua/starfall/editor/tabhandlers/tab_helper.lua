@@ -18,6 +18,112 @@ function TabHandler:RegisterSettings() -- Setting panels should be registered th
 
 end
 
+SF.getE2Docs = function()
+	local e2_builtins = {
+		methods = {},
+		class = "library",
+		realm = "server",
+		fields = { -- Constants
+			name = "CONSTANTS",
+			class = "table",
+			realm = "server",
+			description = "Constant values"
+		},
+		tables = {},
+		name = "builtins",
+		description = "Builtins library"
+	}
+	local out = {
+		Libraries = {
+			builtins = e2_builtins
+		},
+		Version = "bruh",
+		Directives = {},
+		Hooks = {},
+		Types = {}
+	}
+
+	local fallback = {
+		[""] = "Void",
+		["n"] = "Number",
+		["v"] = "Vector",
+		["xco"] = "Coroutine",
+		["xv2"] = "Vector2",
+		["xv4"] = "Vector4",
+		["a"] = "Angle",
+		["c"] = "Complex",
+		["q"] = "Quaternion",
+		["b"] = "Physobj",
+		["s"] = "String",
+		["r"] = "Array",
+		["t"] = "Table",
+		["xrd"] = "Ranger"
+	}
+	local function getTypeName(s)
+		local ok, name = pcall(E2Lib.typeName, s)
+		if not ok then
+			print("E2 Editor needs to load before trying to generate E2 Doc for the SFHelper.")
+			name = fallback[s]
+		end
+		return name
+	end
+
+	local function getParamsFromString(s)
+		local pos, final = 0, #s
+		local out, n, type = {}, 1, ""
+		while pos < final do
+			pos = pos + 1
+			local char = s:sub(pos, pos)
+			if char == "x" then
+				type = s:sub(pos, pos+2)
+				pos = pos + 2
+			else
+				type = char
+			end
+			out[n] = {
+				type = getTypeName(type),
+				name = type,
+				description = "Unknown"
+			}
+			n = n + 1
+		end
+		return out
+	end
+
+	local builtin_methods = e2_builtins.methods
+	-- Registers a builtin function
+	local function registerFunction(name, params, desc)
+		params = params or {}
+		builtin_methods[name] = {
+			realm = "server",
+			class = "function",
+			--returns = {},
+			params = getParamsFromString(params),
+			name = name,
+			description = desc,
+		}
+	end
+
+	for raw, desc in pairs(E2Helper.Descriptions) do
+		local fname, type, colon, params = raw:match("(%w+)%(([%w%d]*)(:?)([%w%d]*)%)")
+		if colon~="" then
+			-- This is part of a type. Ignore for now.
+		else
+			local params = type
+			registerFunction(fname, params, desc)
+		end
+	end
+
+	for name, value in pairs(wire_expression2_constants) do
+		table.insert(e2_builtins.fields, {
+			realm = "server",
+			name = name,
+			description = value
+		})
+	end
+	return out
+end
+
 local function htmlSetup(old, new)
 	if old then
 		if (new.html and new.html:IsValid()) then
@@ -38,7 +144,8 @@ local function htmlSetup(old, new)
 		if not (new and new:IsValid()) then return end
 		_.loaded = true
 		new.url = url
-		html:RunJavascript([[SF_DOC.BuildPages(]]..util.TableToJSON(SF.Docs)..[[);]])
+		local doc = SF.getE2Docs()
+		html:RunJavascript([[SF_DOC.BuildPages(]]..util.TableToJSON(doc)..[[);]])
 	end
 end
 
