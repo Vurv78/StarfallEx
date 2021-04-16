@@ -6,6 +6,8 @@ Currently doesn't have support for constants and type functions like xco:yield.
 
 Don't think it'd be that hard to do it but just putting this branch here if someone wants to finish it if i don't get to.
 
+Load the E2 Editor before trying to load the SF Docs, since it needs to network type data and stuff. You could also get this automated in the code with some function call in the sf code somewhere
+
 - Discord Server: [`https://discord.gg/yFBU8PU`](https://discord.gg/yFBU8PU)
 - Documentation: [`http://thegrb93.github.io/StarfallEx/`](http://thegrb93.github.io/StarfallEx/)
 - Examples: [`https://github.com/thegrb93/StarfallEx/tree/master/lua/starfall/examples`](https://github.com/thegrb93/StarfallEx/tree/master/lua/starfall/examples)
