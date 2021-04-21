@@ -1,0 +1,8 @@
+* text=auto
+
+# Luadoc output
+# =============
+*.html      text
+*.css text
+*.js text
+*.ttf binary
