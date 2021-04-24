@@ -33,7 +33,7 @@ local function getveh(self)
 	end
 end
 
---- Turns a vehicle into a string.
+--- Magically turns a vehicle into a string.
 -- @return string String representing the vehicle.
 function vehicle_meta:__tostring()
 	local ent = unwrap(self)
