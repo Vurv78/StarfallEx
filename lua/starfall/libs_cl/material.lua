@@ -16,12 +16,12 @@ local cv_max_data_material_size = CreateConVar("sf_render_maxdatamaterialsize", 
 local allowed_shaders = {
 	UnlitGeneric = true,
 	VertexLitGeneric = true,
+	Wireframe = true,
 	Refract_DX90 = true,
 	Water_DX90 = true,
 	Sky_DX9 = true,
 	gmodscreenspace = true,
 	Modulate_DX9 = true,
-	MonitorScreen_DX9 = true,
 }
 
 local default_values = {

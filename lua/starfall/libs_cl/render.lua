@@ -166,7 +166,7 @@ end)
 -- @class hook
 -- @client
 SF.hookAdd("PreDrawOpaqueRenderables", "hologrammatrix", function(instance, drawdepth, drawskybox)
-	return not drawskybox, {}
+	return drawskybox, {}
 end)
 
 --- Called when a frame is requested to be drawn on hud. (2D Context)
@@ -287,7 +287,7 @@ SF.hookAdd("CalcView", nil, function(instance, ply, pos, ang, fov, znear, zfar)
 		{instance.Types.Vector.Wrap(pos), instance.Types.Angle.Wrap(ang), fov, znear, zfar}
 end, function(instance, tbl)
 	local t = tbl[2]
-	if t[1] and istable(t) then
+	if tbl[1] and istable(t) then
 		local ret = {}
 		if t.origin then pcall(function() ret.origin = instance.Types.Vector.Unwrap(t.origin) end) end
 		if t.angles then pcall(function() ret.angles = instance.Types.Angle.Unwrap(t.angles) end) end
@@ -436,7 +436,7 @@ end
 -- ------------------------------------------------------------------ --
 
 --- Sets whether stencil tests are carried out for each rendered pixel. Only pixels passing the stencil test are written to the render target.
--- @param boolean enable true to enable, false to disable
+-- @param boolean enable True to enable, false to disable
 function render_library.setStencilEnable(enable)
 	enable = (enable == true) -- Make sure it's a boolean
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
@@ -454,6 +454,7 @@ end
 -- @param number r Value of the red channel to clear the current rt with.
 -- @param number g Value of the green channel to clear the current rt with.
 -- @param number b Value of the blue channel to clear the current rt with.
+-- @param number a Value of the alpha channel to clear the current rt with.
 -- @param boolean Clear the depth buffer.
 function render_library.clearBuffersObeyStencil(r, g, b, a, depth)
 	checkluatype (r, TYPE_NUMBER)
@@ -1548,6 +1549,8 @@ end
 -- @param string text Text to draw
 -- @param number? xalign Text x alignment
 -- @param number? yalign Text y alignment
+-- @return number Width of the drawn text. Same as calling render.getTextSize
+-- @return number Height of the drawn text. Same as calling render.getTextSize
 function render_library.drawSimpleText(x, y, text, xalign, yalign)
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	checkluatype (x, TYPE_NUMBER)
@@ -1558,7 +1561,7 @@ function render_library.drawSimpleText(x, y, text, xalign, yalign)
 
 	local font = renderdata.font or defaultFont
 
-	draw.SimpleText(text, font, x, y, currentcolor, xalign, yalign)
+	return draw.SimpleText(text, font, x, y, currentcolor, xalign, yalign)
 end
 
 --- Constructs a markup object for quick styled text drawing.
@@ -2173,7 +2176,8 @@ function render_library.setFogEnd(distance)
 	render.FogEnd(distance)
 end
 
---- Sets the height below which fog will be rendered. Only works with fog mode 2
+--- Sets the height below which fog will be rendered. Only works with fog mode 2, MATERIAL_FOG.LINEAR_BELOW_FOG_Z
+-- @param number height The fog height
 function render_library.setFogHeight(height)
 	checkpermission(instance, nil, "render.fog")
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
