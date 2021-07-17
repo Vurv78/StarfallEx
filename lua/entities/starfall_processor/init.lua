@@ -68,17 +68,14 @@ function ENT:Think()
 		local bufferAvg = self.instance.cpu_average
 		self:SetNWInt("CPUus", math.Round(bufferAvg * 1000000))
 		self:SetNWFloat("CPUpercent", math.floor(bufferAvg / self.instance.cpuQuota * 100))
+		self:NextThink(CurTime() + 0.25)
+		return true
 	end
 end
 
 function ENT:SendCode(recipient)
 	if not self.sfsenddata then return end
-	SF.SendStarfall("starfall_processor_download", self.sfsenddata, recipient, function(ply)
-		local instance = self.instance
-		if instance then
-			instance:runScriptHook("clientinitialized", instance.Types.Player.Wrap(ply))
-		end
-	end)
+	SF.SendStarfall("starfall_processor_download", self.sfsenddata, recipient)
 end
 
 function ENT:PreEntityCopy()
@@ -152,6 +149,8 @@ hook.Add("AdvDupe_FinishPasting", "SF_dupefinished", dupefinished)
 util.AddNetworkString("starfall_processor_download")
 util.AddNetworkString("starfall_processor_used")
 util.AddNetworkString("starfall_processor_link")
+util.AddNetworkString("starfall_processor_kill")
+util.AddNetworkString("starfall_processor_clinit")
 util.AddNetworkString("starfall_report_error")
 
 -- Request code from the chip. If the chip doesn't have code yet add player to list to send when there is code.
@@ -167,6 +166,26 @@ net.Receive("starfall_processor_link", function(len, ply)
 	local linked = Entity(entIndex)
 	if linked.link and linked.link:IsValid() then
 		SF.LinkEnt(linked, linked.link, ply)
+	end
+end)
+
+net.Receive("starfall_processor_kill", function(len, ply)
+	local target = net.ReadEntity()
+	if ply:IsAdmin() and target:IsValid() and target:GetClass()=="starfall_processor" then
+		target:Error({message = "Killed by admin", traceback = ""})
+		net.Start("starfall_processor_kill")
+		net.WriteEntity(target)
+		net.Broadcast()
+	end
+end)
+
+net.Receive("starfall_processor_clinit", function(len, ply)
+	local proc = net.ReadEntity()
+	if ply:IsValid() and proc:IsValid() then
+		local instance = proc.instance
+		if instance then
+			instance:runScriptHook("clientinitialized", instance.Types.Player.Wrap(ply))
+		end
 	end
 end)
 

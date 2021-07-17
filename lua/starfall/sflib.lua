@@ -634,12 +634,12 @@ function SF.Require(moduleName)
 	return false
 end
 
-
-function SF.CompileString(str, name, handle)
-	if string.find(str, "repeat.*continue.*until") then
-		return "Due to a glua bug. Use of the string 'continue' in repeat-until loops has been banned"
+--- Compile String but fix a compile error.
+function SF.CompileString(script, identifier, handle_error)
+	if string.match(script, "%f[%w_]repeat%f[^%w_].*%f[%w_]continue%f[^%w_].*%f[%w_]until%f[^%w_]") then
+		return "Using 'continue' in a repeat-until loop has been banned due to a glua bug."
 	end
-	return CompileString(str, name, handle)
+	return CompileString(script, identifier, handle_error)
 end
 
 --- The safest write file function
@@ -1016,23 +1016,17 @@ function SF.NormalizePath(path)
 	local null = string.find(path, "\x00", 1, true)
 	if null then path = string.sub(path, 1, null-1) end
 
-	local tbl = string.Explode("[/\\]+", path, true)
-	if #tbl == 1 then return path end
-	local i = 1
-	while i <= #tbl do
-		if tbl[i] == "." or tbl[i]=="" then
-			table.remove(tbl, i)
-		elseif tbl[i] == ".." then
-			table.remove(tbl, i)
-			if i>1 then
-				i = i - 1
-				table.remove(tbl, i)
+	local pathtbl = {}
+	for s in string.gmatch(path, "[^/\\]+") do
+		if s ~= "." and s~="" then
+			if s == ".." then
+				pathtbl[#pathtbl] = nil
+			else
+				pathtbl[#pathtbl + 1] = s
 			end
-		else
-			i = i + 1
 		end
 	end
-	return table.concat(tbl, "/")
+	return table.concat(pathtbl, "/")
 end
 
 -- This function clamps the position before moving the entity
@@ -1365,6 +1359,39 @@ end
 
 
 do
+	-- Some more optimized path regex until gmod pulls them
+	function string.GetExtensionFromFilename( path )
+		return string.match( path, "%.([^%.]+)$" )
+	end
+	function string.StripExtension( path )
+		return string.match( path, "(.+)%." ) or path
+	end
+	function string.GetPathFromFilename( path )
+		return string.match( path, "(.*[/\\])" ) or ""
+	end
+	function string.GetFileFromFilename( path )
+		return string.match( path, "[\\/]([^/\\]+)$" ) or path
+	end
+
+	local function checkregex(data, pattern)
+		local limits = {[0] = 50000000, 15000, 500, 150, 70, 40} -- Worst case is about 200ms
+		-- strip escaped things
+		local stripped, nrepl = string.gsub(pattern, "%%.", "")
+		-- strip bracketed things
+		stripped, nrepl2 = string.gsub(stripped, "%[.-%]", "")
+		-- strip captures
+		stripped = string.gsub(stripped, "[()]", "")
+		-- Find extenders
+		local n = 0 for i in string.gmatch(stripped, "[%+%-%*]") do n = n + 1 end
+		local msg
+		if n<=#limits then
+			if #data*(#stripped + nrepl - n + nrepl2)>limits[n] then msg = n.." ext search length too long ("..limits[n].." max)" else return end
+		else
+			msg = "too many extenders"
+		end
+		SF.Throw("Regex is too complex! " .. msg, 3)
+	end
+
 	local checkluatype = SF.CheckLuaType
 	local string_library = {}
 	string_library.byte = string.byte
@@ -1372,8 +1399,6 @@ do
 	string_library.comma = string.Comma string_library.Comma = string.Comma
 	string_library.dump = string.dump
 	string_library.endsWith = string.EndsWith string_library.EndsWith = string.EndsWith
-	string_library.explode = string.Explode string_library.Explode = string.Explode
-	string_library.find = string.find
 	function string_library.format(s, ...)
 		checkluatype(s, TYPE_STRING)
 		for i=1, select("#",...) do
@@ -1386,19 +1411,52 @@ do
 	string_library.getExtensionFromFilename = string.GetExtensionFromFilename string_library.GetExtensionFromFilename = string.GetExtensionFromFilename
 	string_library.getFileFromFilename = string.GetFileFromFilename string_library.GetFileFromFilename = string.GetFileFromFilename
 	string_library.getPathFromFilename = string.GetPathFromFilename string_library.GetPathFromFilename = string.GetPathFromFilename
-	string_library.gfind = string.gfind
-	string_library.gmatch = string.gmatch
-	string_library.gsub = string.gsub
+	function string_library.explode(pattern, data, withpattern)
+		if withpattern then
+			checkluatype(data, TYPE_STRING)
+			checkluatype(pattern, TYPE_STRING)
+			checkregex(data, pattern)
+		end
+		return string.Explode(pattern, data, withpattern)
+	end
+	string_library.Explode = string_library.explode
+	function string_library.find(data, pattern, start, noPatterns)
+		if not noPatterns then
+			checkluatype(data, TYPE_STRING)
+			checkluatype(pattern, TYPE_STRING)
+			checkregex(data, pattern)
+		end
+		return string.find(data, pattern, start, noPatterns)
+	end
+	function string_library.match(data, pattern)
+		checkluatype(data, TYPE_STRING)
+		checkluatype(pattern, TYPE_STRING)
+		checkregex(data, pattern)
+		return string.match(data, pattern)
+	end
+	function string_library.gmatch(data, pattern)
+		checkluatype(data, TYPE_STRING)
+		checkluatype(pattern, TYPE_STRING)
+		checkregex(data, pattern)
+		return string.gmatch(data, pattern)
+	end
+	string_library.gfind = string_library.gmatch
+	function string_library.gsub(data, pattern, replacement, max)
+		checkluatype(data, TYPE_STRING)
+		checkluatype(pattern, TYPE_STRING)
+		checkregex(data, pattern)
+		return string.gsub(data, pattern, replacement, max)
+	end
 	string_library.implode = string.Implode string_library.Implode = string.Implode
 	local function javascriptSafe(str)
 		checkluatype(str, TYPE_STRING)
 		return string.JavascriptSafe(str)
 	end
+	string_library.replace = string.Replace string_library.Replace = string.Replace
 	string_library.javascriptSafe = javascriptSafe string_library.JavascriptSafe = javascriptSafe
 	string_library.left = string.Left string_library.Left = string.Left
 	string_library.len = string.len
 	string_library.lower = string.lower
-	string_library.match = string.match
 	string_library.niceSize = string.NiceSize string_library.NiceSize = string.NiceSize
 	string_library.niceTime = string.NiceTime string_library.NiceTime = string.NiceTime
 	local function patternSafe(str)
@@ -1406,7 +1464,6 @@ do
 		return string.PatternSafe(str)
 	end
 	string_library.patternSafe = patternSafe string_library.PatternSafe = patternSafe
-	string_library.replace = string.Replace string_library.Replace = string.Replace
 	string_library.reverse = string.reverse
 	string_library.right = string.Right string_library.Right = string.Right
 	string_library.setChar = string.SetChar string_library.SetChar = string.SetChar

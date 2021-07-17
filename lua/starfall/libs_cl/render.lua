@@ -166,7 +166,7 @@ end)
 -- @class hook
 -- @client
 SF.hookAdd("PreDrawOpaqueRenderables", "hologrammatrix", function(instance, drawdepth, drawskybox)
-	return not drawskybox, {}
+	return drawskybox, {}
 end)
 
 --- Called when a frame is requested to be drawn on hud. (2D Context)
@@ -350,6 +350,7 @@ local markup_methods, markwrap, markunwrap = instance.Types.Markup.Methods, inst
 local mtlunwrap = instance.Types.LockedMaterial.Unwrap
 
 
+local getent
 instance:AddHook("initialize", function()
 	getent = instance.Types.Entity.GetEntity
 end)
@@ -600,7 +601,7 @@ end
 -- @param number startX X start coordinate of the scissor rect.
 -- @param number startY Y start coordinate of the scissor rect.
 -- @param number endX X end coordinate of the scissor rect.
--- @param number endX Y end coordinate of the scissor rect.
+-- @param number endY Y end coordinate of the scissor rect.
 function render_library.enableScissorRect(startX, startY, endX, endY)
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	checkluatype (startX, TYPE_NUMBER)
@@ -1423,6 +1424,7 @@ end
 -- @param boolean? outline Enable outline? Default false
 -- @param boolean? blur Enable blur? Default false
 -- @param boolean? extended Allows the font to display glyphs outside of Latin-1 range. Unicode code points above 0xFFFF are not supported. Required to use FontAwesome
+-- @return string The font name that can be used with the rest of the font functions.
 -- Base font can be one of (keep in mind that these may not exist on all clients if they are not shipped with starfall):
 -- \- Akbar
 -- \- Coolvetica
@@ -1549,6 +1551,8 @@ end
 -- @param string text Text to draw
 -- @param number? xalign Text x alignment
 -- @param number? yalign Text y alignment
+-- @return number Width of the drawn text. Same as calling render.getTextSize
+-- @return number Height of the drawn text. Same as calling render.getTextSize
 function render_library.drawSimpleText(x, y, text, xalign, yalign)
 	if not renderdata.isRendering then SF.Throw("Not in rendering hook.", 2) end
 	checkluatype (x, TYPE_NUMBER)
@@ -1559,7 +1563,7 @@ function render_library.drawSimpleText(x, y, text, xalign, yalign)
 
 	local font = renderdata.font or defaultFont
 
-	draw.SimpleText(text, font, x, y, currentcolor, xalign, yalign)
+	return draw.SimpleText(text, font, x, y, currentcolor, xalign, yalign)
 end
 
 --- Constructs a markup object for quick styled text drawing.

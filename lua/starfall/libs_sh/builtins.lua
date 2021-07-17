@@ -18,6 +18,12 @@ end
 -- @libtbl os_library
 SF.RegisterLibrary("os")
 
+--- Lua debug library https://wiki.garrysmod.com/page/Category:debug
+-- @name debug
+-- @class library
+-- @libtbl debug_library
+SF.RegisterLibrary("debug")
+
 return function(instance)
 local checkpermission = instance.player ~= SF.Superuser and SF.Permissions.check or function() end
 
@@ -29,8 +35,10 @@ local col_meta, cwrap, cunwrap = instance.Types.Color, instance.Types.Color.Wrap
 
 local builtins_library = instance.env
 
+local getent
 local getply
 instance:AddHook("initialize", function()
+	getent = instance.Types.Entity.GetEntity
 	getply = instance.Types.Player.GetPlayer
 end)
 
@@ -616,9 +624,23 @@ else
 end
 
 --- Returns the table of scripts used by the chip
+-- @param Entity? ent Optional target entity. Default: chip()
 -- @return table Table of scripts used by the chip
-function builtins_library.getScripts()
-	return instance.Sanitize(instance.source)
+function builtins_library.getScripts(ent)
+	if ent~=nil then
+		ent = getent(ent)
+		local oinstance = ent.instance
+		if not (ent.Starfall and oinstance and (oinstance.player == instance.player or oinstance.shareScripts)) then SF.Throw("Invalid starfall chip", 2) end
+		return instance.Sanitize(oinstance.source)
+	else
+		return instance.Sanitize(instance.source)
+	end
+end
+
+--- Sets the chip to allow other chips to view its sources
+-- @param boolean enable If true, allow sharing scripts
+function builtins_library.shareScripts(enable)
+	instance.shareScripts = (enable == true) or nil
 end
 
 --- Runs an included script and caches the result.
@@ -837,12 +859,41 @@ function builtins_library.getMethods(sfType)
 	end
 end
 
+
+local debug_library = instance.Libraries.debug
+
+--- GLua's debug.traceback()
+-- Returns a string containing traceback info
+-- @param thread? A thread to get the stacktrace of. Otherwise uses current thread and uses this arg as the message.
+-- @param string? message A message to be included in the stack trace. Default: ""
+-- @return number? stacklevel How far up to start the stack level. Default: 1
+function debug_library.traceback(thread, message, stacklevel)
+	local ok, t = pcall(instance.Types.thread.Unwrap, thread)
+	if ok then
+		thread = t.thread
+	else
+		stacklevel = message
+		message = thread
+		thread = nil
+	end
+	if message~=nil then checkluatype(message, TYPE_STRING) end
+	if stacklevel~=nil then checkluatype(stacklevel, TYPE_NUMBER) end
+
+	if thread then
+		return debug.traceback(thread, message, stacklevel)
+	elseif message then
+		return debug.traceback(message, stacklevel)
+	else
+		return debug.traceback("", stacklevel)
+	end
+end
+
 --- GLua's debug.getinfo()
 -- Returns a DebugInfo structure containing the passed function's info https://wiki.facepunch.com/gmod/Structures/DebugInfo
 -- @param function|number funcOrStackLevel Function or stack level to get info about. Defaults to stack level 0.
 -- @param string? fields A string that specifies the information to be retrieved. Defaults to all (flnSu).
 -- @return table DebugInfo table
-function builtins_library.debugGetInfo(funcOrStackLevel, fields)
+function debug_library.getinfo(funcOrStackLevel, fields)
 	if not isfunction(funcOrStackLevel) and not isnumber(funcOrStackLevel) then SF.ThrowTypeError("function or number", SF.GetType(TfuncOrStackLevel), 2) end
 	if fields~=nil then checkluatype(fields, TYPE_STRING) end
 
@@ -858,7 +909,7 @@ end
 -- @param function|number funcOrStackLevel Function or stack level to get info about. Defaults to stack level 0.
 -- @param number index The index of the local to get
 -- @return string The name of the local
-function builtins_library.debugGetLocal(funcOrStackLevel, index)
+function debug_library.getlocal(funcOrStackLevel, index)
 	if not isfunction(funcOrStackLevel) and not isnumber(funcOrStackLevel) then SF.ThrowTypeError("function or number", SF.GetType(TfuncOrStackLevel), 2) end
 	checkluatype(index, TYPE_NUMBER)
 

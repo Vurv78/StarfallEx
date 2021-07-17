@@ -128,6 +128,7 @@ function net_library.send(target, unreliable)
 	netSize = 0
 	netData = {}
 	netStarted = false
+	instance:checkCpu()
 end
 
 --- Writes an object to a net message automatically typing it
@@ -214,15 +215,15 @@ function net_library.readData(n)
 	return net.ReadData(n)
 end
 
---- Streams a large 20MB string.
+--- Streams up to 64MB strings. Anything over 20MB with compression enabled will throw cpu quota
 -- @shared
 -- @param string str The string to be written
 -- @param boolean? compress Compress the data. True by default
 function net_library.writeStream(str, compress)
 	if not netStarted then SF.Throw("net message not started", 2) end
-
 	checkluatype (str, TYPE_STRING)
-	write(net.WriteStream, 8*8, str, nil, not compress)
+	if #str > 64e6 then SF.Throw("String is too long!") end
+	write(net.WriteStream, 8*8, str, nil, compress == false)
 	return true
 end
 

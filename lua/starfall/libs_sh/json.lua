@@ -9,8 +9,6 @@ SF.RegisterLibrary("json")
 
 
 return function(instance)
-
-
 local json_library = instance.Libraries.json
 
 --- Convert table to JSON string
